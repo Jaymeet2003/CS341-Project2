@@ -91,15 +91,19 @@ module Operations =
             // Drop the last pixel from both rows before zipping
             let rowWithoutLast = List.init (List.length row - 1) (fun i -> List.item i row)
             let nextRowWithoutLast = List.init (List.length nextRow - 1) (fun i -> List.item i nextRow)
+            // Iterate through the lists using indices
+            // and Pair each pixel with its right and bottom neighbors
+            let resultList = 
+                List.mapi (fun i pixel ->
+                    let rightPixel = List.item (i + 1) row
+                    let bottomPixel = List.item i nextRowWithoutLast
+                    if isEdge pixel rightPixel bottomPixel then
+                        (0, 0, 0) // Edge detected: Black pixel
+                    else
+                        (255, 255, 255) // No edge: White pixel
+                ) rowWithoutLast
 
-            // Pair each pixel with its right and bottom neighbors
-            List.zip3 rowWithoutLast (List.tail row) nextRowWithoutLast
-            |> List.map (fun (pixel, rightPixel, bottomPixel) ->
-                if isEdge pixel rightPixel bottomPixel then
-                    (0, 0, 0) // Edge detected: Black pixel
-                else
-                    (255, 255, 255) // No edge: White pixel
-            )
+            resultList
 
         match image with
         | [] | [_] -> []  // If the image list is empty or has only one row, return an empty list
