@@ -45,8 +45,18 @@ module Operations =
                     (depth:int)
                     (image:(int*int*int) list list)
                     (threshold:int) = 
+      let depthCalculator d = 
+        if d > threshold then depth
+        else 0
+
+      let thresholdPixel (r, g, b) = 
+        ((depthCalculator r, depthCalculator g, depthCalculator b))
     
-    image
+      match image with
+      | [] -> [] // If the image list is empty, return an empty list.
+      | row :: restOfImage ->
+          let thresholdedRow = row |> List.map thresholdPixel
+          thresholdedRow :: Threshold width (height - 1) depth restOfImage threshold
 
 
   
@@ -54,7 +64,7 @@ module Operations =
                          (height:int)
                          (depth:int)
                          (image:(int*int*int) list list) = 
-    image
+    image |> List.map List.rev
 
 
   
@@ -63,12 +73,54 @@ module Operations =
                (depth:int)
                (image:(int*int*int) list list)
                (threshold:int) = 
-    image
+     // Calculate the color difference between two pixels
+    let pixelDifference (r1, g1, b1) (r2, g2, b2) =
+        let dr = float (r1 - r2)
+        let dg = float (g1 - g2)
+        let db = float (b1 - b2)
+        sqrt (dr * dr + dg * dg + db * db)
+    // Check if a pixel is an edge
+    let isEdge pixel rightPixel bottomPixel =
+        let rightDiff = pixelDifference pixel rightPixel
+        let bottomDiff = pixelDifference pixel bottomPixel
+        rightDiff > float threshold || bottomDiff > float threshold
+
+
+    let processRow row nextRow =
+      // Drop the last pixel from both rows before zipping
+      let rowWithoutLast = List.init (List.length row - 1) (fun i -> List.item i row)
+      let nextRowWithoutLast = List.init (List.length nextRow - 1) (fun i -> List.item i nextRow)
+
+      // Zip the row with its next row to get the bottom pixel
+      // Then zip the result with the tail of the row to get the right pixel
+      // This effectively pairs each pixel with its right and bottom neighbors
+      List.zip3 rowWithoutLast (List.tail row) nextRowWithoutLast
+      |> List.map (fun (pixel, rightPixel, bottomPixel) ->
+          if isEdge pixel rightPixel bottomPixel then
+              (0, 0, 0) // Black pixel
+          else
+              (255, 255, 255) // White pixel
+      )
+
+    match image with
+    | [] | [_] -> []  // If the image list is empty or has only one row, return an empty list.
+    | row :: nextRow :: restOfImage -> 
+        processRow row nextRow :: EdgeDetect width (height - 1) depth (nextRow :: restOfImage) threshold
 
 
   let rec RotateRight90 (width:int)
                         (height:int)
                         (depth:int)
                         (image:(int*int*int) list list) = 
-    image
+    // Extract a column as a list given an index 'col'
+    let columnAsRow n image =
+      image |> List.map (fun row -> List.item n row) |> List.rev
+    let rec helper colIndex =
+        if colIndex >= width then []
+        else
+            let newRow = columnAsRow colIndex image
+            newRow :: helper (colIndex + 1)
+
+    helper 0
+
 
